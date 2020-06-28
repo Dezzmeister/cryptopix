@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">Cryptopix</string>
+    <string name="init_main_imageview_content_desc">Open an images</string>
+</resources>
