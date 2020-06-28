@@ -1,4 +1,15 @@
 <resources>
     <string name="app_name">Cryptopix</string>
-    <string name="init_main_imageview_content_desc">Open an images</string>
+    <string name="app_id">ca-app-pub-1564378525627449~8523022192</string>
+    <string name="ad_unit_id">ca-app-pub-3940256099942544/6300978111</string>
+    <string name="PRODUCTION_AD_UNIT_ID">ca-app-pub-1564378525627449/6136246594</string>
+
+    <string name="init_main_imageview_content_desc">Open an image</string>
+
+    <string name="main_menu_add_picture_title">Select image</string>
+    <string name="main_menu_take_picture_title">Take photo</string>
+
+    <string name="main_dialog_encode_or_decode">Does this image contain a secret message?</string>
+    <string name="main_dialog_eod_positive">Yes</string>
+    <string name="main_dialog_eod_negative">No</string>
 </resources>
