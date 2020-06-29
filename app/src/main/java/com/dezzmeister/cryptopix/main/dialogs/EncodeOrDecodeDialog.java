@@ -1,4 +1,4 @@
-package com.dezzmeister.cryptopix.maindialogs;
+package com.dezzmeister.cryptopix.main.dialogs;
 
 import android.app.Dialog;
 import android.content.DialogInterface;

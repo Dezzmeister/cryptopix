@@ -6,8 +6,9 @@
 
     <string name="init_main_imageview_content_desc">Open an image</string>
 
-    <string name="main_menu_add_picture_title">Select image</string>
-    <string name="main_menu_take_picture_title">Take photo</string>
+    <string name="main_menu_add_picture_title">Select Image</string>
+    <string name="main_menu_take_picture_title">Take Photo</string>
+    <string name="main_menu_dark_mode">Dark Mode</string>
 
     <string name="main_dialog_encode_or_decode">Does this image contain a secret message?</string>
     <string name="main_dialog_eod_positive">Yes</string>

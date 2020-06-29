@@ -13,4 +13,9 @@
         android:title="@string/main_menu_take_picture_title"
         app:showAsAction="ifRoom">
     </item>
+    <item
+        android:id="@+id/dark_mode"
+        android:title="@string/main_menu_dark_mode"
+        app:showAsAction="never">
+    </item>
 </menu>

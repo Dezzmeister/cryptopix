@@ -1,14 +1,13 @@
 package com.dezzmeister.cryptopix;
 
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.appcompat.app.AppCompatDelegate;
 import androidx.appcompat.widget.Toolbar;
 import androidx.core.content.FileProvider;
 
 import android.content.Intent;
-import android.database.Cursor;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
-import android.media.ThumbnailUtils;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
@@ -19,7 +18,7 @@ import android.view.MenuItem;
 import android.widget.ImageView;
 import android.widget.Toast;
 
-import com.dezzmeister.cryptopix.maindialogs.EncodeOrDecodeDialog;
+import com.dezzmeister.cryptopix.main.dialogs.EncodeOrDecodeDialog;
 import com.google.android.gms.ads.AdRequest;
 import com.google.android.gms.ads.AdView;
 import com.google.android.gms.ads.MobileAds;
@@ -39,12 +38,25 @@ import java.util.Date;
  * @since 1.0.0
  */
 public class MainActivity extends AppCompatActivity {
+
+    /**
+     * Request code to select an image in the gallery
+     */
     private static final int REQUEST_IMAGE_GET = 1;
+
+    /**
+     * Request code to capture an image with the camera
+     */
     private static final int REQUEST_IMAGE_CAPTURE = 2;
+
+    /**
+     * The main ImageView
+     */
     private ImageView mainImageView;
     private File imageDirectory;
     private String currentPhotoPath;
     private Bitmap fullSizeImage;
+    private boolean darkMode = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -68,6 +80,8 @@ public class MainActivity extends AppCompatActivity {
         mainImageView = findViewById(R.id.imageView);
 
         imageDirectory = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES);
+
+        AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_NO);
     }
 
     @Override
@@ -191,6 +205,10 @@ public class MainActivity extends AppCompatActivity {
         dialog.show(getSupportFragmentManager(), "encodeOrDecode");
     }
 
+    private void toggleDarkMode() {
+
+    }
+
     @Override
     public boolean onOptionsItemSelected(final MenuItem item) {
         switch (item.getItemId()) {
@@ -200,6 +218,10 @@ public class MainActivity extends AppCompatActivity {
             }
             case R.id.capture_picture: {
                 captureImage();
+                return true;
+            }
+            case R.id.dark_mode: {
+                toggleDarkMode();
                 return true;
             }
             default: {
