@@ -12,30 +12,35 @@ public class PackageData_v1_0_0 implements SecretPackageData {
     /**
      * A Cryptopix version code
      */
-    public final long cryptopixVersionCode = -1;
+    public long cryptopixVersionCode = -1;
 
     /**
      * Size of the package header, in bytes (excluding version code)
      */
-    public final int headerSizeBytes = -1;
+    public int payloadHeaderSize = -1;
 
     /**
-     * Size of the payload, in bytes
+     * Size of the payload, in bytes (excluding the header)
      */
-    public final int dataSizeBytes = -1;
+    public int payloadSize = -1;
 
     /**
      * True if the file is encrypted with a password
      */
-    public final boolean hasPassword = false;
+    public boolean hasPassword = false;
 
     /**
      * Salt (only exists if there is a password)
      */
-    public final String salt = null;
+    public String salt = null;
 
     /**
      * Password hash (only exists if there is a password)
      */
-    public final String passwordHash = null;
+    public String passwordHash = null;
+
+    /**
+     * The pixel at which payload data begins (the payload header, possibly encrypted)
+     */
+    public int dataOffset = -1;
 }

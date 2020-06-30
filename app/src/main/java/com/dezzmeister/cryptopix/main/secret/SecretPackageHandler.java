@@ -13,7 +13,26 @@ import com.dezzmeister.cryptopix.main.images.ImageData;
  */
 public interface SecretPackageHandler {
 
-    ImageData encodeSecret(final ImageData original, final byte[] secretData);
+    /**
+     * Extracts only the package header of an image containing secret data. Anyone can view the package
+     * header even if a password is used; the password is only used to encrypt the payload and
+     * payload header.
+     *
+     * @param secret image containing secret payload
+     * @return package header
+     */
+    SecretPackageData extractHeader(final ImageData secret);
+
+    /**
+     * Hides the given data in the image, accounting for the options provided. This function returns a
+     * new {@link ImageData} instance with a new pixel array, to keep the original intact.
+     *
+     * @param original original image
+     * @param secretData secret data to hide in the image
+     * @param options options to use when hiding data
+     * @return image containing secret data
+     */
+    ImageData encodeSecret(final ImageData original, final byte[] secretData, final EncodingOptions options);
 
     DecodedImage decode(final ImageData secret);
 }

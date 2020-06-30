@@ -53,10 +53,21 @@ public class MainActivity extends AppCompatActivity {
      * The main ImageView
      */
     private ImageView mainImageView;
+
+    /**
+     * Main image directory (where to store and look for images)
+     */
     private File imageDirectory;
+
+    /**
+     * Path to the current image, if created for a camera capture
+     */
     private String currentPhotoPath;
+
+    /**
+     * The current image (full size)
+     */
     private Bitmap fullSizeImage;
-    private boolean darkMode = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {

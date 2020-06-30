@@ -5,7 +5,9 @@ import java.util.Arrays;
 import java.util.List;
 
 /**
+ * List of supported MIME types.
  *
+ * @author Joe Desmond
  */
 public class SupportedMIMETypes {
 
