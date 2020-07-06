@@ -9,5 +9,5 @@ import java.io.Serializable;
  * @author Joe Desmond
  * @since 1.0.0
  */
-public interface SecretPackageData extends Serializable {
+public interface PackageHeader extends Serializable {
 }

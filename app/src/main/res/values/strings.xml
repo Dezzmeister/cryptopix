@@ -4,13 +4,28 @@
     <string name="ad_unit_id">ca-app-pub-3940256099942544/6300978111</string>
     <string name="PRODUCTION_AD_UNIT_ID">ca-app-pub-1564378525627449/6136246594</string>
 
+    <string name="main_activity_title">Cryptopix</string>
+    <string name="encode_message_activity_title">Inject Secret Data</string>
+
     <string name="init_main_imageview_content_desc">Open an image</string>
 
     <string name="main_menu_add_picture_title">Select Image</string>
     <string name="main_menu_take_picture_title">Take Photo</string>
     <string name="main_menu_dark_mode">Dark Mode</string>
 
-    <string name="main_dialog_encode_or_decode">Does this image contain a secret message?</string>
-    <string name="main_dialog_eod_positive">Yes</string>
-    <string name="main_dialog_eod_negative">No</string>
+    <string name="yes">Yes</string>
+    <string name="no">No</string>
+
+    <string name="encode_secret_dialog">This image does not contain a secret message. Do you want to add one?</string>
+    <string name="decode_secret_dialog">This image contains a secret message. Do you want to extract it?</string>
+    <string name="unsupported_algorithm_dialog">This image contains a secret message, but your device cannot decode it. Do you want to encode a new message?</string>
+    <string name="corrupted_image_dialog">This image contains a corrupted secret message. Do you want to encode a new message?</string>
+
+    <string name="default_filename_textview">No file selected</string>
+    <string name="select_file_button">Select File</string>
+    <string name="add_password_checkbox">Encrypt file with password</string>
+    <string name="compress_file_checkbox">Compress file</string>
+    <string name="save_file_button">Save File</string>
+
+
 </resources>

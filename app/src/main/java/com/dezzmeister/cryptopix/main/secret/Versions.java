@@ -36,10 +36,10 @@ public class Versions {
      * Package handlers. Plug in a version code and get a package handler to encode/decode packages
      * in that version of Cryptopix.
      */
-    public static final Map<Long, SecretPackageHandler> PACKAGE_HANDLERS;
+    public static final Map<Long, PackageHandler> PACKAGE_HANDLERS;
 
     static {
-        PACKAGE_HANDLERS = new HashMap<Long, SecretPackageHandler>();
+        PACKAGE_HANDLERS = new HashMap<Long, PackageHandler>();
         PACKAGE_HANDLERS.put(VERSION_1_0_0, new PackageHandler_v1_0_0());
     }
 
@@ -64,7 +64,7 @@ public class Versions {
      * @return package handler for the given version
      * @see #THIS_VERSION
      */
-    public static final SecretPackageHandler getHandler(final long versionCode) {
+    public static final PackageHandler getHandler(final long versionCode) {
         return PACKAGE_HANDLERS.get(versionCode);
     }
 }

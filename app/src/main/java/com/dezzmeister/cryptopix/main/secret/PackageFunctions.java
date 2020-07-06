@@ -2,6 +2,10 @@ package com.dezzmeister.cryptopix.main.secret;
 
 import com.dezzmeister.cryptopix.main.images.ImageData;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+
 /**
  * Contains functions to extract secret data. Package handlers can use these functions; new functions
  * may be added to support newer encoding techniques.
@@ -12,29 +16,85 @@ import com.dezzmeister.cryptopix.main.images.ImageData;
 public class PackageFunctions {
 
     /**
+     * Salts a password and hashes it using SHA-256. A 32-byte hash is returned.
+     *
+     * @param salt salt
+     * @param password password
+     * @return 32-byte SHA-256 hash
+     * @throws NoSuchAlgorithmException if SHA-256 is not supported on this device
+     */
+    public static final byte[] saltAndHashPassword(final byte[] salt, final byte[] password) throws NoSuchAlgorithmException {
+        final byte[] salted = new byte[salt.length + password.length];
+
+        int saltIndex = 0;
+        int passIndex = 0;
+        for (int i = 0; i < salted.length; i++) {
+            if (saltIndex < salt.length) {
+                salted[i] = salt[saltIndex];
+                saltIndex++;
+            }
+
+            if (passIndex < password.length) {
+                salted[i] = password[passIndex];
+                passIndex++;
+            }
+        }
+
+        final MessageDigest digest = MessageDigest.getInstance("SHA-256");
+        final byte[] hash = digest.digest(salted);
+
+        return hash;
+    }
+
+    /**
+     * Writes the given secret bytes to the pixel array, starting at the given offset.
+     *
+     * @param pixels 4-byte ARGB pixel array (will be modified)
+     * @param bytes secret bytes
+     * @param offset starting offset
+     */
+    public static final void writeBytes(int[] pixels, final byte[] bytes, final int offset) {
+        for (int i = 0; i < bytes.length; i++) {
+            final int index = i + offset;
+            final int secret = ((int) bytes[i]) & 0xFF;
+
+            final int alpha = (secret & 0xC0) << 18;
+            final int red = (secret & 0x30) << 12;
+            final int green = (secret & 0x0C) << 6;
+            final int blue = secret & 0x03;
+
+            pixels[index] |= (alpha | red | green | blue);
+        }
+    }
+
+    /**
      * Extract the hidden bytes from an array of ARGB pixels containing secret data. This function
      * will not perform any bounds checks.
      *
      * @param argbPixels 4-byte ARGB pixel array
-     * @param numBytes number of bytes to extract
+     * @param numBytes number of bytes to extract, or negative to extract all remaining bytes
      * @param offset byte offset (starts extracting bytes from the given pixel offset)
      * @return extracted bytes
      */
-    public static final byte[] extractBytes(final int[] argbPixels, final int numBytes, final int offset) {
+    public static final byte[] extractBytes(final int[] argbPixels, int numBytes, final int offset) {
+        if (numBytes < 0) {
+            numBytes = argbPixels.length - offset;
+        }
+
         final byte[] out = new byte[numBytes];
         final int alphaMask = 0x03000000;
         final int redMask = 0x00030000;
         final int greenMask = 0x00000300;
         final int blueMask = 0x00000003;
 
-        for (int i = offset; i < argbPixels.length; i++) {
+        for (int i = offset; i < offset + numBytes; i++) {
             final int pixel = argbPixels[i];
             final int data =
                             (pixel & blueMask) |
                             ((pixel & greenMask) >>> 6) |
                             ((pixel & redMask) >>> 12) |
                             ((pixel & alphaMask) >>> 18);
-            out[i] = (byte)data;
+            out[i - offset] = (byte)data;
         }
 
         return out;

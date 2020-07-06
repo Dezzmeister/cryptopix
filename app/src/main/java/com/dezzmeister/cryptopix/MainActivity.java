@@ -18,7 +18,18 @@ import android.view.MenuItem;
 import android.widget.ImageView;
 import android.widget.Toast;
 
-import com.dezzmeister.cryptopix.main.dialogs.EncodeOrDecodeDialog;
+import com.dezzmeister.cryptopix.main.dialogs.CorruptedImageDialog;
+import com.dezzmeister.cryptopix.main.dialogs.DecodeSecretDialog;
+import com.dezzmeister.cryptopix.main.dialogs.DialogArgs;
+import com.dezzmeister.cryptopix.main.dialogs.EncodeSecretDialog;
+import com.dezzmeister.cryptopix.main.dialogs.UnsupportedAlgorithmDialog;
+import com.dezzmeister.cryptopix.main.images.ImageData;
+import com.dezzmeister.cryptopix.main.secret.EncodedImageState;
+import com.dezzmeister.cryptopix.main.secret.PackageFunctions;
+import com.dezzmeister.cryptopix.main.secret.PackageHeader;
+import com.dezzmeister.cryptopix.main.secret.PackageHandler;
+import com.dezzmeister.cryptopix.main.secret.Versions;
+import com.dezzmeister.cryptopix.main.session.SessionObject;
 import com.google.android.gms.ads.AdRequest;
 import com.google.android.gms.ads.AdView;
 import com.google.android.gms.ads.MobileAds;
@@ -27,6 +38,7 @@ import com.google.android.gms.ads.initialization.OnInitializationCompleteListene
 
 import java.io.File;
 import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
@@ -38,6 +50,21 @@ import java.util.Date;
  * @since 1.0.0
  */
 public class MainActivity extends AppCompatActivity {
+
+    /**
+     * Folder (in the internal app directory) containing the session object
+     */
+    private static final String SESSION_OBJECT_FOLDER = "session";
+
+    /**
+     * Name of the session object
+     */
+    private static final String SESSION_OBJECT_FILENAME = "session_v1_0_0.joe";
+
+    /**
+     * Name of the local image (stored in local files), in {@link #SESSION_OBJECT_FOLDER}
+     */
+    private static final String LOCAL_IMAGE_FILENAME = "image_v1_0_0.png";
 
     /**
      * Request code to select an image in the gallery
@@ -69,6 +96,11 @@ public class MainActivity extends AppCompatActivity {
      */
     private Bitmap fullSizeImage;
 
+    /**
+     * The current session object
+     */
+    private SessionObject session;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -92,7 +124,52 @@ public class MainActivity extends AppCompatActivity {
 
         imageDirectory = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES);
 
-        AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_NO);
+        session = getSessionObject();
+        final Bitmap image = session.getBitmap();
+        if (image != null) {
+            mainImageView.setImageBitmap(image);
+        }
+
+
+        if (session.darkModeEnabled()) {
+            AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_YES);
+        } else {
+            AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_NO);
+        }
+    }
+
+    private SessionObject getSessionObject() {
+        final File internalFiles = getApplicationContext().getFilesDir();
+        final File sessionDirectory = new File(internalFiles, SESSION_OBJECT_FOLDER);
+        final File sessionPath = new File(sessionDirectory, SESSION_OBJECT_FILENAME);
+
+        if (!sessionDirectory.exists()) {
+            // Session directory doesn't exist; directory and session need to be created
+
+            if (!sessionDirectory.mkdir()) {
+                // Directory can't be created for some reason. Display an error message
+
+                final Toast toast = Toast.makeText(this, "Unable to create session object!", Toast.LENGTH_SHORT);
+                toast.show();
+                return new SessionObject(null);
+            }
+
+            return new SessionObject(sessionPath);
+        } else {
+            if (!sessionPath.exists()) {
+                // Delete all files (possibly a session from an old version)
+
+                for (final File file : sessionDirectory.listFiles()) {
+                    if (!file.isDirectory()) {
+                        file.delete();
+                    }
+                }
+
+                return new SessionObject(sessionPath);
+            } else {
+                return SessionObject.loadFrom(this, sessionPath);
+            }
+        }
     }
 
     @Override
@@ -107,6 +184,7 @@ public class MainActivity extends AppCompatActivity {
      */
     private void selectImage() {
         final Intent imageChooserIntent = new Intent();
+
         imageChooserIntent.setAction(Intent.ACTION_GET_CONTENT);
         imageChooserIntent.setType("image/*");
         if (imageChooserIntent.resolveActivity(getPackageManager()) != null) {
@@ -124,8 +202,8 @@ public class MainActivity extends AppCompatActivity {
      */
     private File createImageFile() throws IOException {
         final String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
-        final String imageFileName = "PNG_" + timeStamp + "_";
-        final File image = File.createTempFile(imageFileName, ".png", imageDirectory);
+        final String imageFileName = "PNG_" + timeStamp + "_.png";
+        final File image = new File(imageDirectory, imageFileName);
 
         currentPhotoPath = image.getAbsolutePath();
         return image;
@@ -142,6 +220,8 @@ public class MainActivity extends AppCompatActivity {
             try {
                 photoFile = createImageFile();
             } catch (IOException e) {
+                e.printStackTrace();
+
                 final Toast toast = Toast.makeText(this, "Unable to capture photo! Select a gallery image instead", Toast.LENGTH_SHORT);
                 toast.show();
             }
@@ -156,15 +236,42 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+    /**
+     * Copy a bitmap to the local persistent storage. Use this to circumvent URI permission rules
+     * and have images persist across app sessions.
+     *
+     * @param bitmap bitmap image
+     * @return file handle to the local image
+     */
+    private File copyBitmapToLocal(final Bitmap bitmap) {
+        final File internalFiles = getApplicationContext().getFilesDir();
+        final File sessionDirectory = new File(internalFiles, SESSION_OBJECT_FOLDER);
+        final File imageLocation = new File(sessionDirectory, LOCAL_IMAGE_FILENAME);
+
+        try (final FileOutputStream fos = new FileOutputStream(imageLocation)) {
+            bitmap.compress(Bitmap.CompressFormat.PNG, 100, fos);
+        } catch (Exception e) {
+            e.printStackTrace();
+
+            final Toast toast = Toast.makeText(this, "Unable to save image!", Toast.LENGTH_SHORT);
+            toast.show();
+        }
+
+        return imageLocation;
+    }
+
     @Override
     protected void onActivityResult(final int requestCode, final int resultCode, final Intent data) {
         switch (requestCode) {
             case REQUEST_IMAGE_GET: {
                 if (resultCode == RESULT_OK) {
                     final Uri contentURI = data.getData();
-                    Bitmap bitmap = null;
+
                     try {
-                        bitmap = BitmapFactory.decodeStream(getContentResolver().openInputStream(contentURI));
+                        final Bitmap bitmap = BitmapFactory.decodeStream(getContentResolver().openInputStream(contentURI));
+                        final File location = copyBitmapToLocal(bitmap);
+
+                        session.setBitmap(this, bitmap, location);
                     } catch (FileNotFoundException e) {
                         e.printStackTrace();
                         final Toast toast = Toast.makeText(this, "File does not exist!", Toast.LENGTH_SHORT);
@@ -172,11 +279,11 @@ public class MainActivity extends AppCompatActivity {
                         return;
                     }
 
-                    fullSizeImage = bitmap;
-                    mainImageView.setImageBitmap(bitmap);
+                    fullSizeImage = session.getBitmap();
+                    mainImageView.setImageBitmap(session.getBitmap());
 
                     super.onActivityResult(requestCode, resultCode, data);
-                    showEncodeDecodeDialog(fullSizeImage);
+                    handleNewImage(session.getImage());
 
                     return;
                 }
@@ -184,12 +291,13 @@ public class MainActivity extends AppCompatActivity {
             case REQUEST_IMAGE_CAPTURE: {
                 if (resultCode == RESULT_OK) {
                     final Bitmap bitmap = BitmapFactory.decodeFile(currentPhotoPath);
+                    session.setBitmap(this, bitmap, new File(currentPhotoPath));
 
-                    fullSizeImage = bitmap;
-                    mainImageView.setImageBitmap(bitmap);
+                    fullSizeImage = session.getBitmap();
+                    mainImageView.setImageBitmap(session.getBitmap());
 
                     super.onActivityResult(requestCode, resultCode, data);
-                    showEncodeDecodeDialog(fullSizeImage);
+                    handleNewImage(session.getImage());
 
                     return;
                 }
@@ -200,24 +308,94 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    /**
-     * Shows a dialog allowing the user to hide a message, or extract a hidden message.
-     * Passes the image to the dialog fragment.
-     *
-     * @param image image to hide secret message in or extract secret message from
-     */
-    private void showEncodeDecodeDialog(final Bitmap image) {
-        final EncodeOrDecodeDialog dialog = new EncodeOrDecodeDialog();
-        dialog.setCancelable(false);
-        final Bundle bundle = new Bundle();
-        bundle.putParcelable(EncodeOrDecodeDialog.IMAGE_KEY, image);
-        dialog.setArguments(bundle);
+    private void handleNewImage(final ImageData imageData) {
+        final long versionCode = PackageFunctions.versionCode(imageData);
+        final PackageHandler handler = Versions.getHandler(versionCode);
+        final EncodedImageState state;
+        final PackageHeader packageHeader;
 
-        dialog.show(getSupportFragmentManager(), "encodeOrDecode");
+        if (handler == null) {
+            state = EncodedImageState.NO_SECRET;
+            packageHeader = null;
+        } else {
+            packageHeader = handler.extractHeader(imageData);
+            state = handler.getImageState(this, imageData, packageHeader);
+        }
+
+        splitOnImageState(state, session, packageHeader, handler);
     }
 
-    private void toggleDarkMode() {
+    /**
+     * Splits the flow of the app based on the state of the image. There are five cases:
+     * <ul>
+     *     <li>The image contains valid, uncorrupted and unencrypted secret data</li>
+     *     <li>The image contains valid, uncorrupted secret data encrypted with a password</li>
+     *     <li>The image contains corrupted secret data (extremely rare case that there isn't any secret data)</li>
+     *     <li>The image cannot be decoded because a hash function is not supported on the device</li>
+     *     <li>The image does not contain any secret data (or it does, but it was generated by a newer Cryptopix version)</li>
+     * </ul>
+     *
+     * @param state state of the image
+     * @param session session object containing the image (in either Bitmap format or ImageData format)
+     * @param packageHeader secret package header (can be null if the image contains no secret)
+     * @param packageHandler secret package handler
+     */
+    private void splitOnImageState(final EncodedImageState state, final SessionObject session, final PackageHeader packageHeader, final PackageHandler packageHandler) {
+        final Bundle bundle = new Bundle();
 
+        bundle.putSerializable(DialogArgs.SESSION_OBJECT_KEY, session);
+        bundle.putSerializable(DialogArgs.PACKAGE_HEADER_KEY, packageHeader);
+        bundle.putSerializable(DialogArgs.PACKAGE_HANDLER_KEY, packageHandler);
+
+        switch (state) {
+            case SECRET_NO_PASSWORD:
+            case SECRET_PASSWORD: {
+                final DecodeSecretDialog dialog = new DecodeSecretDialog();
+                dialog.setCancelable(false);
+                dialog.setArguments(bundle);
+                dialog.show(getSupportFragmentManager(), "decodeSecret");
+
+                return;
+            }
+            case CORRUPTED: {
+                final CorruptedImageDialog dialog = new CorruptedImageDialog();
+                dialog.setCancelable(false);
+                dialog.setArguments(bundle);
+                dialog.show(getSupportFragmentManager(), "corruptedImage");
+
+                return;
+            }
+            case UNSUPPORTED: {
+                final UnsupportedAlgorithmDialog dialog = new UnsupportedAlgorithmDialog();
+                dialog.setCancelable(false);
+                dialog.setArguments(bundle);
+                dialog.show(getSupportFragmentManager(), "unsupportedAlgorithm");
+
+                return;
+            }
+            default:
+            case NO_SECRET: {
+                final EncodeSecretDialog dialog = new EncodeSecretDialog();
+                dialog.setCancelable(false);
+                dialog.setArguments(bundle);
+                dialog.show(getSupportFragmentManager(), "encodeSecret");
+
+                return;
+            }
+        }
+    }
+
+    /**
+     * Toggles dark theme.
+     */
+    private void toggleDarkMode() {
+        session.toggleDarkMode(this);
+
+        if (session.darkModeEnabled()) {
+            getDelegate().setLocalNightMode((AppCompatDelegate.MODE_NIGHT_YES));
+        } else {
+            getDelegate().setLocalNightMode((AppCompatDelegate.MODE_NIGHT_NO));
+        }
     }
 
     @Override
