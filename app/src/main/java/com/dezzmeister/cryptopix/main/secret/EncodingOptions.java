@@ -11,6 +11,10 @@ import java.io.Serializable;
  * @since 1.0.0
  */
 public class EncodingOptions implements Serializable {
+    /**
+     * Cryptopix version code
+     */
+    public long versionCode = -1;
 
     /**
      * A password to use when encrypting the package, or null if no password should be used

@@ -20,11 +20,6 @@ public class PackageData_v1_0_0 implements PackageHeader {
     public byte[] payloadHash = null;
 
     /**
-     * Size of the package header, in bytes (excluding version code)
-     */
-    public int payloadHeaderSize = -1;
-
-    /**
      * Size of the payload, in bytes (excluding the header)
      */
     public int payloadSize = -1;
@@ -35,9 +30,19 @@ public class PackageData_v1_0_0 implements PackageHeader {
     public boolean hasPassword = false;
 
     /**
+     * True if the data is compressed. Data can be compressed before encryption.
+     */
+    public boolean compressed = false;
+
+    /**
      * Salt (only exists if there is a password)
      */
     public byte[] salt = null;
+
+    /**
+     * 16-byte initialization vector (only exists if there is a password)
+     */
+    public byte[] initVector = null;
 
     /**
      * SHA-256 password hash (only exists if there is a password)

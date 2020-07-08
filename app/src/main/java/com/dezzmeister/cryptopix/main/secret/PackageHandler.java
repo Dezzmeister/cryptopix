@@ -5,7 +5,16 @@ import android.content.Context;
 import com.dezzmeister.cryptopix.main.images.DecodedImage;
 import com.dezzmeister.cryptopix.main.images.ImageData;
 
+import java.io.IOException;
 import java.io.Serializable;
+import java.security.InvalidAlgorithmParameterException;
+import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
+import java.security.spec.InvalidKeySpecException;
+
+import javax.crypto.BadPaddingException;
+import javax.crypto.IllegalBlockSizeException;
+import javax.crypto.NoSuchPaddingException;
 
 /**
  * Implemented by any class that can encode/decode Cryptopix images. This exists for backward
@@ -58,7 +67,15 @@ public interface PackageHandler extends Serializable {
      * @param options options to use when hiding data
      * @return image containing secret data
      */
-    ImageData encodeSecret(final ImageData original, final byte[] secretData, final EncodingOptions options);
+    ImageData encodeSecret(final ImageData original, final Payload secretData, final EncodingOptions options) throws IOException, InvalidKeySpecException, NoSuchAlgorithmException, IllegalBlockSizeException, InvalidKeyException, BadPaddingException, InvalidAlgorithmParameterException, NoSuchPaddingException;
 
-    DecodedImage decode(final ImageData secret);
+    Payload decode(final ImageData secret, final String password);
+
+    /**
+     * Creates an empty Payload. The user can fill this payload with necessary file data and call
+     * {@link #encodeSecret(ImageData, Payload, EncodingOptions)}.
+     *
+     * @return an empty payload
+     */
+    Payload getEmptyPayload();
 }
