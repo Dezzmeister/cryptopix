@@ -25,7 +25,7 @@ public class Versions {
      * The first version.
      * @since 1.0.0
      */
-    public static final long VERSION_1_0_0 = 0xCACADACC;
+    public static final long VERSION_1_0_0 = 0xCACADACCL;
 
     /**
      * Always the current version. This variable should be updated before a new version is released.

@@ -296,7 +296,10 @@ public class PackageFunctions {
             final int green = (secret & 0x0C) << 6;
             final int blue = secret & 0x03;
 
-            pixels[index] |= (alpha | red | green | blue);
+            int pixel = pixels[index] & 0xFCFCFCFC;
+            pixel |= (alpha | red | green | blue);
+
+            pixels[index] = pixel;
         }
     }
 

@@ -2,7 +2,6 @@ package com.dezzmeister.cryptopix.main.secret;
 
 import android.content.Context;
 
-import com.dezzmeister.cryptopix.main.images.DecodedImage;
 import com.dezzmeister.cryptopix.main.images.ImageData;
 
 import java.io.IOException;
@@ -30,16 +29,15 @@ public interface PackageHandler extends Serializable {
     /**
      * Returns a status value representing the state of the encoded data within the image.
      *
-     * @param context context to use when creating error Toasts
      * @param secret image containing secret
      * @param header optional image header (for <code>secret</code>). If this is null, the image header will be recomputed.
      * @return true if the secret data is valid and not corrupt
      */
-    EncodedImageState getImageState(final Context context, final ImageData secret, final PackageHeader header);
+    EncodedImageState getImageState(final ImageData secret, final PackageHeader header) throws NoSuchAlgorithmException;
 
     /**
      * Returns true if the given image contains a password-protected payload. Does not ensure that the
-     * secret data is valid; validity must still be checked with {@link #getImageState(Context, ImageData, PackageHeader)}.
+     * secret data is valid; validity must still be checked with {@link #getImageState(ImageData, PackageHeader)}.
      *
      * @param secret image data
      * @param data package header for the given image, if it has already been extracted. If this parameter is not null,

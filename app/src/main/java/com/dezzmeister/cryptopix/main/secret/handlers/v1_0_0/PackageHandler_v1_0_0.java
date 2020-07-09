@@ -95,40 +95,9 @@ public class PackageHandler_v1_0_0 implements PackageHandler {
      */
     private static final int PBKDF2_ITERATIONS = 5000;
 
-    /**
-     * Creates a byte array of the appropriate length for the given encoding options. This byte array
-     * will be used to write headers and secret data, and the byte array will be encrypted and stored
-     * in the
-     *
-     * @param secretData
-     * @param options
-     * @return
-     */
-    private final byte[] createByteArray(final byte[] secretData, final EncodingOptions options) {
-        int length = MIN_PACKAGE_HEADER_LENGTH;
-
-        if (options.password != null) {
-            length = MAX_PACKAGE_HEADER_LENGTH;
-        }
-
-        length += secretData.length;
-
-        return new byte[length];
-    }
-
     @Override
-    public EncodedImageState getImageState(final Context context, final ImageData secret, final PackageHeader header) {
-        MessageDigest md5;
-
-        try {
-            md5 = MessageDigest.getInstance("MD5");
-        } catch (NoSuchAlgorithmException e) {
-            e.printStackTrace();
-
-            final Toast toast = Toast.makeText(context, "MD5 is not supported on this device!", Toast.LENGTH_SHORT);
-            toast.show();
-            return EncodedImageState.UNSUPPORTED;
-        }
+    public EncodedImageState getImageState(final ImageData secret, final PackageHeader header) throws NoSuchAlgorithmException {
+        final MessageDigest md5 = MessageDigest.getInstance("MD5");
 
         final PackageData_v1_0_0 packageHeader;
 
