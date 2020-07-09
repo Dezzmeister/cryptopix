@@ -20,7 +20,7 @@ public class PackageData_v1_0_0 implements PackageHeader {
     public byte[] payloadHash = null;
 
     /**
-     * Size of the payload, in bytes (excluding the header)
+     * Size of the payload, in bytes (including the payload header)
      */
     public int payloadSize = -1;
 

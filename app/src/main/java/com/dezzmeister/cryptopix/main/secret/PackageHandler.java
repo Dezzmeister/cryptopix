@@ -11,6 +11,7 @@ import java.security.InvalidAlgorithmParameterException;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.security.spec.InvalidKeySpecException;
+import java.util.zip.DataFormatException;
 
 import javax.crypto.BadPaddingException;
 import javax.crypto.IllegalBlockSizeException;
@@ -69,7 +70,7 @@ public interface PackageHandler extends Serializable {
      */
     ImageData encodeSecret(final ImageData original, final Payload secretData, final EncodingOptions options) throws IOException, InvalidKeySpecException, NoSuchAlgorithmException, IllegalBlockSizeException, InvalidKeyException, BadPaddingException, InvalidAlgorithmParameterException, NoSuchPaddingException;
 
-    Payload decode(final ImageData secret, final String password);
+    Payload decode(final ImageData secret, final PackageHeader header, final String password) throws NoSuchAlgorithmException, InvalidKeySpecException, IllegalBlockSizeException, InvalidKeyException, BadPaddingException, InvalidAlgorithmParameterException, NoSuchPaddingException, DataFormatException, IOException;
 
     /**
      * Creates an empty Payload. The user can fill this payload with necessary file data and call

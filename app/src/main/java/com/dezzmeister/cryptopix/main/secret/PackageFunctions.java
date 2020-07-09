@@ -166,13 +166,23 @@ public class PackageFunctions {
      *
      * @return 16-byte initialization vector
      */
-    public static final IvParameterSpec generateIV() {
+    public static final IvParameterSpec generateIV(final int length) {
         final SecureRandom random = new SecureRandom();
-        final byte[] bytes = new byte[16];
+        final byte[] bytes = new byte[length];
 
         random.nextBytes(bytes);
 
         return new IvParameterSpec(bytes);
+    }
+
+    /**
+     * Creates an IvParameterSpec from a given initialization vector.
+     *
+     * @param iv iv bytes
+     * @return IvParameterSpec
+     */
+    public static final IvParameterSpec createIV(final byte[] iv) {
+        return new IvParameterSpec(iv);
     }
 
     /**
@@ -257,7 +267,7 @@ public class PackageFunctions {
         final byte[] providedHash = saltAndHashPassword(salt, providedPassword);
 
         if (providedHash.length != hash.length) {
-            throw new IllegalArgumentException("Known password hash is not the correct length!");
+            throw new SecurityException("Known password hash is not the correct length!");
         }
 
         for (int i = 0; i < hash.length; i++) {
@@ -288,6 +298,25 @@ public class PackageFunctions {
 
             pixels[index] |= (alpha | red | green | blue);
         }
+    }
+
+    /**
+     * Gets a specific section of the given byte array and returns a new byte array containing the smaller array.
+     *
+     * @param in input byte array (containing subarray)
+     * @param numBytes number of bytes to get in the subarray, or negative to get all remaining bytes
+     * @param offset where the subarray starts in the input array
+     * @return subarray from <code>in[offset]</code> to <code>in[offset + numBytes]</code>
+     */
+    public static final byte[] getSubarray(final byte[] in, int numBytes, final int offset) {
+        if (numBytes < 0) {
+            numBytes = in.length - offset;
+        }
+
+        final byte[] out = new byte[numBytes];
+
+        System.arraycopy(in, offset, out, 0, numBytes);
+        return out;
     }
 
     /**

@@ -3,7 +3,6 @@ package com.dezzmeister.cryptopix.main.secret.handlers.v1_0_0;
 import android.content.Context;
 import android.widget.Toast;
 
-import com.dezzmeister.cryptopix.main.images.DecodedImage;
 import com.dezzmeister.cryptopix.main.images.ImageData;
 import com.dezzmeister.cryptopix.main.secret.EncodedImageState;
 import com.dezzmeister.cryptopix.main.secret.EncodingOptions;
@@ -20,6 +19,7 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.spec.InvalidKeySpecException;
 import java.util.ArrayList;
+import java.util.zip.DataFormatException;
 
 import javax.crypto.BadPaddingException;
 import javax.crypto.IllegalBlockSizeException;
@@ -138,8 +138,8 @@ public class PackageHandler_v1_0_0 implements PackageHandler {
             packageHeader = (PackageData_v1_0_0) header;
         }
 
-        final int startIndex = VERSION_CODE_LENGTH + PAYLOAD_HASH_LENGTH;
-        final byte[] data = PackageFunctions.extractBytes(secret.pixels, -1, startIndex);
+        // The payload data starts at packageHeader.dataOffset
+        final byte[] data = PackageFunctions.extractBytes(secret.pixels, packageHeader.payloadSize, packageHeader.dataOffset);
 
         final byte[] realHash = md5.digest(data);
 
@@ -243,12 +243,6 @@ public class PackageHandler_v1_0_0 implements PackageHandler {
      */
     private static final int PAYLOAD_MIMETYPE_SIZE = 4;
 
-    /**
-     * The payload data size field (4-byte field). The payload data follows this field, and this field
-     * gives the number of bytes of data.
-     */
-    private static final int PAYLOAD_DATA_SIZE = 4;
-
     @Override
     public ImageData encodeSecret(final ImageData original, final Payload secretData, final EncodingOptions options) throws IOException, InvalidKeySpecException, NoSuchAlgorithmException, IllegalBlockSizeException, InvalidKeyException, BadPaddingException, InvalidAlgorithmParameterException, NoSuchPaddingException {
         /**
@@ -292,7 +286,7 @@ public class PackageHandler_v1_0_0 implements PackageHandler {
             salt = PackageFunctions.generateSalt();
             passwordHash = PackageFunctions.saltAndHashPassword(salt, password);
             keySpec = PackageFunctions.generateKey(password, salt, PBKDF2_ITERATIONS);
-            ivSpec = PackageFunctions.generateIV();
+            ivSpec = PackageFunctions.generateIV(INIT_VECTOR_LENGTH);
 
             final byte[] rawPayload = PackageFunctions.packSequentialBinaryFields(payloadFields);
             payload = PackageFunctions.encrypt(rawPayload, keySpec, ivSpec);
@@ -336,8 +330,77 @@ public class PackageHandler_v1_0_0 implements PackageHandler {
     }
 
     @Override
-    public Payload decode(final ImageData secret, final String password) {
-        return null;
+    public Payload decode(final ImageData secret, final PackageHeader header, final String password) throws NoSuchAlgorithmException, InvalidKeySpecException, IllegalBlockSizeException, InvalidKeyException, BadPaddingException, InvalidAlgorithmParameterException, NoSuchPaddingException, DataFormatException, IOException {
+        final PackageData_v1_0_0 packageData;
+
+        if (header instanceof PackageData_v1_0_0) {
+            packageData = (PackageData_v1_0_0) header;
+        } else {
+            throw new IllegalArgumentException("Wrong package header type!");
+        }
+
+        if (packageData.dataOffset + packageData.payloadSize > secret.pixels.length) {
+            throw new IllegalArgumentException("Image is too small to contain specified payload!");
+        }
+
+        final byte[] rawPayload = PackageFunctions.extractBytes(secret.pixels, packageData.payloadSize, packageData.dataOffset);
+        final byte[] unencryptedPayload;
+
+        if (packageData.hasPassword) {
+            final byte[] passwordBytes = password.getBytes(StandardCharsets.US_ASCII);
+
+            if (!PackageFunctions.isCorrectPassword(passwordBytes, packageData.salt, packageData.passwordHash)) {
+                throw new SecurityException("Invalid password!");
+            }
+
+            final IvParameterSpec ivSpec = PackageFunctions.createIV(packageData.initVector);
+            final SecretKeySpec keySpec = PackageFunctions.generateKey(passwordBytes, packageData.salt, PBKDF2_ITERATIONS);
+
+            unencryptedPayload = PackageFunctions.decrypt(rawPayload, keySpec, ivSpec);
+        } else {
+            unencryptedPayload = rawPayload;
+        }
+
+        int seek = 0;
+        final byte[] fileNameSizeField = PackageFunctions.getSubarray(unencryptedPayload, PAYLOAD_FILENAME_SIZE, seek);
+        final int fileNameSize = PackageFunctions.intFromBytes(fileNameSizeField);
+        seek += PAYLOAD_FILENAME_SIZE;
+
+        if (fileNameSize + seek > unencryptedPayload.length) {
+            throw new IllegalArgumentException("Illegal file name size in payload header!");
+        }
+
+        final byte[] fileNameField = PackageFunctions.getSubarray(unencryptedPayload, fileNameSize, seek);
+        final String fileName = new String(fileNameField, StandardCharsets.US_ASCII);
+        seek += fileNameSize;
+
+        final byte[] mimeTypeSizeField = PackageFunctions.getSubarray(unencryptedPayload, PAYLOAD_MIMETYPE_SIZE, seek);
+        final int mimeTypeSize = PackageFunctions.intFromBytes(mimeTypeSizeField);
+        seek += PAYLOAD_MIMETYPE_SIZE;
+
+        if (mimeTypeSize + seek > unencryptedPayload.length) {
+            throw new IllegalArgumentException("Illegal MIME type size in payload header!");
+        }
+
+        final byte[] mimeTypeField = PackageFunctions.getSubarray(unencryptedPayload, mimeTypeSize, seek);
+        final String mimeType = new String(mimeTypeField, StandardCharsets.US_ASCII);
+        seek += mimeTypeSize;
+
+        final byte[] rawFileData = PackageFunctions.getSubarray(unencryptedPayload, -1, seek);
+        final byte[] fileData;
+
+        if (packageData.compressed) {
+            fileData = PackageFunctions.decompress(rawFileData);
+        } else {
+            fileData = rawFileData;
+        }
+
+        final Payload payloadObject = getEmptyPayload();
+        payloadObject.setFileName(fileName);
+        payloadObject.setMimeType(mimeType);
+        payloadObject.setData(fileData);
+
+        return payloadObject;
     }
 
     @Override
