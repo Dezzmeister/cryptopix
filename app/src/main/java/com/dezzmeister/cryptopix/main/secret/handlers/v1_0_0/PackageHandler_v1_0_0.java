@@ -1,16 +1,5 @@
 package com.dezzmeister.cryptopix.main.secret.handlers.v1_0_0;
 
-import android.content.Context;
-import android.widget.Toast;
-
-import com.dezzmeister.cryptopix.main.images.ImageData;
-import com.dezzmeister.cryptopix.main.secret.EncodedImageState;
-import com.dezzmeister.cryptopix.main.secret.EncodingOptions;
-import com.dezzmeister.cryptopix.main.secret.PackageFunctions;
-import com.dezzmeister.cryptopix.main.secret.PackageHeader;
-import com.dezzmeister.cryptopix.main.secret.PackageHandler;
-import com.dezzmeister.cryptopix.main.secret.Payload;
-
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.security.InvalidAlgorithmParameterException;
@@ -19,14 +8,23 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.spec.InvalidKeySpecException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.zip.DataFormatException;
 
 import javax.crypto.BadPaddingException;
 import javax.crypto.IllegalBlockSizeException;
 import javax.crypto.NoSuchPaddingException;
-import javax.crypto.SecretKey;
 import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
+
+import com.dezzmeister.cryptopix.main.exceptions.SizeLimitExceededException;
+import com.dezzmeister.cryptopix.main.images.ImageData;
+import com.dezzmeister.cryptopix.main.secret.EncodedImageState;
+import com.dezzmeister.cryptopix.main.secret.EncodingOptions;
+import com.dezzmeister.cryptopix.main.secret.PackageFunctions;
+import com.dezzmeister.cryptopix.main.secret.PackageHandler;
+import com.dezzmeister.cryptopix.main.secret.PackageHeader;
+import com.dezzmeister.cryptopix.main.secret.Payload;
 
 /**
  * Package handler for files generated with Cryptopix 1.0.0. The static members give the byte-length of
@@ -96,8 +94,16 @@ public class PackageHandler_v1_0_0 implements PackageHandler {
     private static final int PBKDF2_ITERATIONS = 5000;
 
     @Override
-    public EncodedImageState getImageState(final ImageData secret, final PackageHeader header) throws NoSuchAlgorithmException {
-        final MessageDigest md5 = MessageDigest.getInstance("MD5");
+    public EncodedImageState getImageState(final ImageData secret, final PackageHeader header) {
+        final MessageDigest md5;
+
+        try {
+            md5 = MessageDigest.getInstance("MD5");
+        } catch (NoSuchAlgorithmException e) {
+            e.printStackTrace();
+
+            return EncodedImageState.UNSUPPORTED;
+        }
 
         final PackageData_v1_0_0 packageHeader;
 
@@ -112,7 +118,7 @@ public class PackageHandler_v1_0_0 implements PackageHandler {
 
         final byte[] realHash = md5.digest(data);
 
-        if (realHash.equals(packageHeader.payloadHash)) {
+        if (Arrays.equals(realHash, packageHeader.payloadHash)) {
             if (packageHeader.hasPassword) {
                 return EncodedImageState.SECRET_PASSWORD;
             } else {
@@ -213,7 +219,7 @@ public class PackageHandler_v1_0_0 implements PackageHandler {
     private static final int PAYLOAD_MIMETYPE_SIZE = 4;
 
     @Override
-    public ImageData encodeSecret(final ImageData original, final Payload secretData, final EncodingOptions options) throws IOException, InvalidKeySpecException, NoSuchAlgorithmException, IllegalBlockSizeException, InvalidKeyException, BadPaddingException, InvalidAlgorithmParameterException, NoSuchPaddingException {
+    public ImageData encodeSecret(final ImageData original, final Payload secretData, final EncodingOptions options) throws IOException, InvalidKeySpecException, NoSuchAlgorithmException, IllegalBlockSizeException, InvalidKeyException, BadPaddingException, InvalidAlgorithmParameterException, NoSuchPaddingException, SizeLimitExceededException {
         /**
          * 1. Compress data (if compression option specified)
          * 2. Generate key spec and iv spec (if password supplied)
@@ -292,6 +298,10 @@ public class PackageHandler_v1_0_0 implements PackageHandler {
 
         final int[] out = new int[original.pixels.length];
         System.arraycopy(original.pixels, 0, out, 0, out.length);
+
+        if (completeSecretPackage.length > original.pixels.length) {
+            throw new SizeLimitExceededException("Secret package is larger than image!");
+        }
 
         PackageFunctions.writeBytes(out, completeSecretPackage, 0);
 

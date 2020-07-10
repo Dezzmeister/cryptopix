@@ -7,9 +7,34 @@
     android:theme="@style/AppTheme"
     tools:context=".MainActivity">
 
+    <com.google.android.material.floatingactionbutton.FloatingActionButton
+        android:id="@+id/encode_image_fab"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        app:layout_constraintBottom_toTopOf="@id/adLayout"
+        app:layout_constraintLeft_toLeftOf="parent"
+        android:layout_margin="25dp"
+        android:clickable="true"
+        app:tint="@color/iconColorPrimary"
+        app:backgroundTint="@color/colorAccent"
+        app:srcCompat="@drawable/ic_lock_outline_32dp" />
+
+    <com.google.android.material.floatingactionbutton.FloatingActionButton
+        android:id="@+id/decode_image_fab"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        app:layout_constraintBottom_toTopOf="@id/adLayout"
+        app:layout_constraintRight_toRightOf="parent"
+        android:layout_margin="25dp"
+        android:clickable="true"
+        app:tint="@color/iconColorPrimary"
+        app:backgroundTint="@color/colorAccent"
+        app:srcCompat="@drawable/ic_lock_open_32dp" />
+
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
+        app:layout_constraintBottom_toTopOf="@id/adLayout"
         android:orientation="vertical">
 
         <androidx.appcompat.widget.Toolbar
@@ -24,27 +49,29 @@
         <ImageView
             android:id="@+id/imageView"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
+            android:layout_height="0dp"
             android:layout_weight="1"
             android:adjustViewBounds="true"
             android:contentDescription="@string/init_main_imageview_content_desc"
             android:scaleType="fitCenter"
             app:srcCompat="@android:color/transparent" />
 
-        <RelativeLayout
-            android:id="@+id/adLayout"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="vertical">
-
-            <com.google.android.gms.ads.AdView
-                android:id="@+id/adView"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_centerHorizontal="true"
-                app:adSize="BANNER"
-                app:adUnitId="@string/ad_unit_id" />
-        </RelativeLayout>
     </LinearLayout>
+
+    <RelativeLayout
+        android:id="@+id/adLayout"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        app:layout_constraintBottom_toBottomOf="parent">
+
+        <com.google.android.gms.ads.AdView
+            android:id="@+id/adView"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_centerHorizontal="true"
+            app:adSize="BANNER"
+            app:adUnitId="@string/ad_unit_id" />
+    </RelativeLayout>
 
 </androidx.constraintlayout.widget.ConstraintLayout>

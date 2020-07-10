@@ -26,6 +26,9 @@
     <string name="add_password_checkbox">Encrypt file with password</string>
     <string name="compress_file_checkbox">Compress file</string>
     <string name="save_file_button">Save File</string>
+    <string name="send_file_button">Send File</string>
+
+    <string name="set_password_dialog_hint">Enter a password</string>
 
 
 </resources>

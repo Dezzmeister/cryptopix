@@ -43,6 +43,11 @@ public class SessionObject implements Serializable {
     private transient ImageData imageData;
 
     /**
+     * True if the image ({@link #imageData} contains secret data
+     */
+    private boolean imageHasSecret = false;
+
+    /**
      * File path to the image
      */
     private File imagePath;
@@ -91,6 +96,26 @@ public class SessionObject implements Serializable {
         bitmapImage = bitmap;
         imagePath = bitmapLocation;
         save(context);
+    }
+
+    /**
+     * Sets the state of the image (true if it contains secret data, false if not).
+     *
+     * @param context context to show error toasts when saving state
+     * @param containsSecret true if the image contains a secret
+     */
+    public final void setImageContainsSecret(final Context context, final boolean containsSecret) {
+        imageHasSecret = containsSecret;
+        save(context);
+    }
+
+    /**
+     * Returns true if the image contains secret data, false if not.
+     *
+     * @return true if the image contains a secret
+     */
+    public final boolean imageContainsSecret() {
+        return imageHasSecret;
     }
 
     /**

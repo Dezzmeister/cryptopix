@@ -1,7 +1,5 @@
 package com.dezzmeister.cryptopix.main.secret;
 
-import android.provider.Settings;
-
 import com.dezzmeister.cryptopix.main.images.ImageData;
 
 import java.io.ByteArrayOutputStream;
@@ -280,7 +278,8 @@ public class PackageFunctions {
     }
 
     /**
-     * Writes the given secret bytes to the pixel array, starting at the given offset.
+     * Writes the given secret bytes to the pixel array, starting at the given offset. Does NOT perform
+     * bounds checking.
      *
      * @param pixels 4-byte ARGB pixel array (will be modified)
      * @param bytes secret bytes

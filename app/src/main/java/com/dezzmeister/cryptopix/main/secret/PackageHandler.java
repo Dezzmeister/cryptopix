@@ -2,6 +2,7 @@ package com.dezzmeister.cryptopix.main.secret;
 
 import android.content.Context;
 
+import com.dezzmeister.cryptopix.main.exceptions.SizeLimitExceededException;
 import com.dezzmeister.cryptopix.main.images.ImageData;
 
 import java.io.IOException;
@@ -33,7 +34,7 @@ public interface PackageHandler extends Serializable {
      * @param header optional image header (for <code>secret</code>). If this is null, the image header will be recomputed.
      * @return true if the secret data is valid and not corrupt
      */
-    EncodedImageState getImageState(final ImageData secret, final PackageHeader header) throws NoSuchAlgorithmException;
+    EncodedImageState getImageState(final ImageData secret, final PackageHeader header);
 
     /**
      * Returns true if the given image contains a password-protected payload. Does not ensure that the
@@ -66,8 +67,16 @@ public interface PackageHandler extends Serializable {
      * @param options options to use when hiding data
      * @return image containing secret data
      */
-    ImageData encodeSecret(final ImageData original, final Payload secretData, final EncodingOptions options) throws IOException, InvalidKeySpecException, NoSuchAlgorithmException, IllegalBlockSizeException, InvalidKeyException, BadPaddingException, InvalidAlgorithmParameterException, NoSuchPaddingException;
+    ImageData encodeSecret(final ImageData original, final Payload secretData, final EncodingOptions options) throws IOException, InvalidKeySpecException, NoSuchAlgorithmException, IllegalBlockSizeException, InvalidKeyException, BadPaddingException, InvalidAlgorithmParameterException, NoSuchPaddingException, SizeLimitExceededException;
 
+    /**
+     * Decodes an image containing secret data. The image may require a password.
+     *
+     * @param secret image containing secret data
+     * @param header package header for image
+     * @param password optional password (if the secret data is password-protected)
+     * @return decoded secret data
+     */
     Payload decode(final ImageData secret, final PackageHeader header, final String password) throws NoSuchAlgorithmException, InvalidKeySpecException, IllegalBlockSizeException, InvalidKeyException, BadPaddingException, InvalidAlgorithmParameterException, NoSuchPaddingException, DataFormatException, IOException;
 
     /**

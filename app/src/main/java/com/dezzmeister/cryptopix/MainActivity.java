@@ -15,9 +15,12 @@ import android.provider.MediaStore;
 import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
+import android.view.View;
+import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.Toast;
 
+import com.dezzmeister.cryptopix.main.activities.EncodeMessageActivity;
 import com.dezzmeister.cryptopix.main.dialogs.CorruptedImageDialog;
 import com.dezzmeister.cryptopix.main.dialogs.DecodeSecretDialog;
 import com.dezzmeister.cryptopix.main.dialogs.DialogArgs;
@@ -35,6 +38,7 @@ import com.google.android.gms.ads.AdView;
 import com.google.android.gms.ads.MobileAds;
 import com.google.android.gms.ads.initialization.InitializationStatus;
 import com.google.android.gms.ads.initialization.OnInitializationCompleteListener;
+import com.google.android.material.floatingactionbutton.FloatingActionButton;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -101,6 +105,14 @@ public class MainActivity extends AppCompatActivity {
      */
     private SessionObject session;
 
+    private PackageHeader header;
+
+    private PackageHandler handler;
+
+    private FloatingActionButton encodeFAB;
+
+    private FloatingActionButton decodeFAB;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -109,6 +121,12 @@ public class MainActivity extends AppCompatActivity {
 
         final Toolbar toolbar = findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
+
+        encodeFAB = findViewById(R.id.encode_image_fab);
+        decodeFAB = findViewById(R.id.decode_image_fab);
+
+        encodeFAB.setOnClickListener(this::onClickEncodeFAB);
+        decodeFAB.setOnClickListener(this::onClickDecodeFAB);
 
         MobileAds.initialize(this, new OnInitializationCompleteListener() {
             @Override
@@ -130,11 +148,53 @@ public class MainActivity extends AppCompatActivity {
             mainImageView.setImageBitmap(image);
         }
 
+        setFABVisibility(session);
 
         if (session.darkModeEnabled()) {
             AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_YES);
         } else {
             AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_NO);
+        }
+    }
+
+    /**
+     * Defines the behavior when the "Encode" floating action button is clicked. This should open a new
+     * activity to encode some secret data in the image.
+     *
+     * @param view view
+     */
+    private final void onClickEncodeFAB(final View view) {
+        final Intent intent = new Intent(this, EncodeMessageActivity.class);
+        intent.putExtra(DialogArgs.SESSION_OBJECT_KEY, session);
+        intent.putExtra(DialogArgs.PACKAGE_HEADER_KEY, header);
+        intent.putExtra(DialogArgs.PACKAGE_HANDLER_KEY, handler);
+
+        startActivity(intent);
+    }
+
+    private final void onClickDecodeFAB(final View view) {
+
+    }
+
+    /**
+     * Sets the visibility of the two encode/decode floating action buttons based on the state of the
+     * session. The encode button should only be available if an image is selected, and the decode button
+     * should only be available if the image contains a valid secret.
+     *
+     * @param session current session object
+     */
+    private final void setFABVisibility(final SessionObject session) {
+        if (session.getImage() != null) {
+            if (session.imageContainsSecret()) {
+                decodeFAB.setVisibility(View.VISIBLE);
+            } else {
+                decodeFAB.setVisibility(View.GONE);
+            }
+
+            encodeFAB.setVisibility(View.VISIBLE);
+        } else {
+            encodeFAB.setVisibility(View.GONE);
+            decodeFAB.setVisibility(View.GONE);
         }
     }
 
@@ -308,6 +368,12 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+    /**
+     * Gets the image state of a new image, and sets some instance variables (package header and
+     * package handler). The image state determines the control flow of the application.
+     *
+     * @param imageData new image
+     */
     private void handleNewImage(final ImageData imageData) {
         final long versionCode = PackageFunctions.versionCode(imageData);
         final PackageHandler handler = Versions.getHandler(versionCode);
@@ -317,12 +383,18 @@ public class MainActivity extends AppCompatActivity {
         if (handler == null) {
             state = EncodedImageState.NO_SECRET;
             packageHeader = null;
+
+            this.header = null;
+            this.handler = Versions.getHandler(Versions.THIS_VERSION);
         } else {
             packageHeader = handler.extractHeader(imageData);
-            state = handler.getImageState(this, imageData, packageHeader);
+            state = handler.getImageState(imageData, packageHeader);
+
+            this.header = packageHeader;
+            this.handler = handler;
         }
 
-        splitOnImageState(state, session, packageHeader, handler);
+        splitOnImageState(state, session, this.header, this.handler);
     }
 
     /**
@@ -350,39 +422,49 @@ public class MainActivity extends AppCompatActivity {
         switch (state) {
             case SECRET_NO_PASSWORD:
             case SECRET_PASSWORD: {
+                session.setImageContainsSecret(this, true);
+
                 final DecodeSecretDialog dialog = new DecodeSecretDialog();
                 dialog.setCancelable(false);
                 dialog.setArguments(bundle);
                 dialog.show(getSupportFragmentManager(), "decodeSecret");
 
-                return;
+                break;
             }
             case CORRUPTED: {
+                session.setImageContainsSecret(this, false);
+
                 final CorruptedImageDialog dialog = new CorruptedImageDialog();
                 dialog.setCancelable(false);
                 dialog.setArguments(bundle);
                 dialog.show(getSupportFragmentManager(), "corruptedImage");
 
-                return;
+                break;
             }
             case UNSUPPORTED: {
+                session.setImageContainsSecret(this, false);
+
                 final UnsupportedAlgorithmDialog dialog = new UnsupportedAlgorithmDialog();
                 dialog.setCancelable(false);
                 dialog.setArguments(bundle);
                 dialog.show(getSupportFragmentManager(), "unsupportedAlgorithm");
 
-                return;
+                break;
             }
             default:
             case NO_SECRET: {
+                session.setImageContainsSecret(this, false);
+
                 final EncodeSecretDialog dialog = new EncodeSecretDialog();
                 dialog.setCancelable(false);
                 dialog.setArguments(bundle);
                 dialog.show(getSupportFragmentManager(), "encodeSecret");
 
-                return;
+                break;
             }
         }
+
+        setFABVisibility(session);
     }
 
     /**
