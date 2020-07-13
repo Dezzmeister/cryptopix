@@ -2,7 +2,6 @@
 <androidx.constraintlayout.widget.ConstraintLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
-    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
@@ -18,12 +17,11 @@
             android:layout_height="wrap_content"
             android:background="?attr/colorPrimary"
             android:minHeight="?attr/actionBarSize"
-            android:theme="?attr/actionBarTheme"
-            android:title="@string/encode_message_activity_title"/>
+            android:theme="?attr/actionBarTheme" />
 
         <Space
             android:layout_width="match_parent"
-            android:layout_height="80dp" />
+            android:layout_height="100dp" />
 
         <TextView
             android:id="@+id/filename"
@@ -31,42 +29,12 @@
             android:layout_height="wrap_content"
             android:layout_margin="10dp"
             android:text="@string/default_filename_textview"
-            android:textSize="16sp" />
-
-        <Button
-            android:id="@+id/select_file"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_margin="10dp"
-            android:text="@string/select_file_button" />
+            android:textSize="24sp" />
 
         <Space
-            android:layout_width="match_parent"
-            android:layout_height="40dp" />
-
-        <CheckBox
-            android:id="@+id/set_password"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:checked="false"
-            android:text="@string/add_password_checkbox"
-            android:textSize="16sp" />
-
-        <Space
-            android:layout_width="match_parent"
-            android:layout_height="40dp" />
-
-        <CheckBox
-            android:id="@+id/compress_file"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:checked="false"
-            android:text="@string/compress_file_checkbox"
-            android:textSize="16sp" />
-
-        <Space
-            android:layout_width="match_parent"
-            android:layout_height="40dp" />
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:layout_weight="1" />
 
         <LinearLayout
             android:layout_width="wrap_content"
@@ -82,7 +50,7 @@
 
             <Button
                 android:id="@+id/send_file"
-                android:layout_width="wrap_content"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
                 android:text="@string/send_file_button"
@@ -91,8 +59,7 @@
 
         <Space
             android:layout_width="match_parent"
-            android:layout_height="0dp"
-            android:layout_weight="1" />
+            android:layout_height="100dp" />
 
         <com.google.android.gms.ads.AdView
             android:id="@+id/adView"

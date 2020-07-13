@@ -16,21 +16,23 @@ import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
-import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.Toast;
 
+import com.dezzmeister.cryptopix.main.activities.DecodeMessageActivity;
 import com.dezzmeister.cryptopix.main.activities.EncodeMessageActivity;
 import com.dezzmeister.cryptopix.main.dialogs.CorruptedImageDialog;
 import com.dezzmeister.cryptopix.main.dialogs.DecodeSecretDialog;
 import com.dezzmeister.cryptopix.main.dialogs.DialogArgs;
 import com.dezzmeister.cryptopix.main.dialogs.EncodeSecretDialog;
+import com.dezzmeister.cryptopix.main.dialogs.EnterPasswordDecodeDialog;
 import com.dezzmeister.cryptopix.main.dialogs.UnsupportedAlgorithmDialog;
 import com.dezzmeister.cryptopix.main.images.ImageData;
 import com.dezzmeister.cryptopix.main.secret.EncodedImageState;
 import com.dezzmeister.cryptopix.main.secret.PackageFunctions;
 import com.dezzmeister.cryptopix.main.secret.PackageHeader;
 import com.dezzmeister.cryptopix.main.secret.PackageHandler;
+import com.dezzmeister.cryptopix.main.secret.Payload;
 import com.dezzmeister.cryptopix.main.secret.Versions;
 import com.dezzmeister.cryptopix.main.session.SessionObject;
 import com.google.android.gms.ads.AdRequest;
@@ -44,6 +46,8 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.security.NoSuchAlgorithmException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 
@@ -105,12 +109,24 @@ public class MainActivity extends AppCompatActivity {
      */
     private SessionObject session;
 
-    private PackageHeader header;
-
+    /**
+     * The current package handler
+     */
     private PackageHandler handler;
 
+    /**
+     * The current package header
+     */
+    private PackageHeader header;
+
+    /**
+     * Floating action button for encoding data
+     */
     private FloatingActionButton encodeFAB;
 
+    /**
+     * Floating action button for decoding data
+     */
     private FloatingActionButton decodeFAB;
 
     @Override
@@ -142,10 +158,26 @@ public class MainActivity extends AppCompatActivity {
 
         imageDirectory = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES);
 
+        final File externalFiles = getApplicationContext().getExternalFilesDir(null);
+        final File encodedImageDir = new File(externalFiles, EncodeMessageActivity.ENCODED_IMAGE_FOLDER);
+        final File decodedImageDir = new File(externalFiles, DecodeMessageActivity.DECODED_PAYLOAD_FOLDER);
+
+        deleteAppExternalData();
+
+        encodedImageDir.mkdir();
+        decodedImageDir.mkdir();
+
         session = getSessionObject();
         final Bitmap image = session.getBitmap();
         if (image != null) {
             mainImageView.setImageBitmap(image);
+        }
+
+        if (session.imageContainsSecret()) {
+            final ImageData imageData = session.getImage();
+            final long versionCode = PackageFunctions.versionCode(imageData);
+            handler = Versions.getHandler(versionCode);
+            header = handler.extractHeader(imageData);
         }
 
         setFABVisibility(session);
@@ -164,6 +196,10 @@ public class MainActivity extends AppCompatActivity {
      * @param view view
      */
     private final void onClickEncodeFAB(final View view) {
+        if (handler == null) {
+            handler = Versions.getHandler(Versions.THIS_VERSION);
+        }
+
         final Intent intent = new Intent(this, EncodeMessageActivity.class);
         intent.putExtra(DialogArgs.SESSION_OBJECT_KEY, session);
         intent.putExtra(DialogArgs.PACKAGE_HEADER_KEY, header);
@@ -173,7 +209,67 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private final void onClickDecodeFAB(final View view) {
+        if (header == null || handler == null) {
+            final Toast toast = Toast.makeText(this, "No secret data to extract!", Toast.LENGTH_SHORT);
+            toast.show();
+            setFABVisibility(session);
 
+            return;
+        }
+
+        if (!header.isPasswordProtected()) {
+            final Intent intent = new Intent(this, DecodeMessageActivity.class);
+            intent.putExtra(DialogArgs.SESSION_OBJECT_KEY, session);
+            intent.putExtra(DialogArgs.PACKAGE_HEADER_KEY, header);
+            intent.putExtra(DialogArgs.PACKAGE_HANDLER_KEY, handler);
+
+            startActivity(intent);
+        }
+
+        final EnterPasswordDecodeDialog dialog = new EnterPasswordDecodeDialog();
+        dialog.setCancelable(false);
+        dialog.setCallingActivity(this);
+        dialog.show(getSupportFragmentManager(), "enterPassword");
+    }
+
+    public void decodeImage(final String password) {
+        if (password != null) {
+            try {
+                if (!handler.isCorrectPassword(password, header)) {
+                    final Toast toast = Toast.makeText(this, "Incorrect password!", Toast.LENGTH_SHORT);
+                    toast.show();
+
+                    return;
+                }
+            } catch (NoSuchAlgorithmException e) {
+                e.printStackTrace();
+                final Toast toast = Toast.makeText(this, "This device does not have the necessary cryptographic algorithms!", Toast.LENGTH_LONG);
+                toast.show();
+
+                return;
+            }
+        }
+
+        try {
+            final Payload decoded = handler.decode(session.getImage(), header, password);
+            final File decodedFilesDir = new File(getApplicationContext().getExternalFilesDir(null), DecodeMessageActivity.DECODED_PAYLOAD_FOLDER);
+            final File decodedFile = new File(decodedFilesDir, decoded.fileName());
+
+            final FileOutputStream fos = new FileOutputStream(decodedFile);
+            fos.write(decoded.data());
+            fos.close();
+
+            final Intent intent = new Intent(this, DecodeMessageActivity.class);
+            intent.putExtra(DecodeMessageActivity.DECODED_FILE_KEY, decodedFile);
+            intent.putExtra(DecodeMessageActivity.DECODED_MIMETYPE_KEY, decoded.mimeType());
+
+            startActivity(intent);
+        } catch (Exception e) {
+            e.printStackTrace();
+
+            final Toast toast = Toast.makeText(this, "Unable to decode image!", Toast.LENGTH_SHORT);
+            toast.show();
+        }
     }
 
     /**
@@ -219,17 +315,41 @@ public class MainActivity extends AppCompatActivity {
             if (!sessionPath.exists()) {
                 // Delete all files (possibly a session from an old version)
 
-                for (final File file : sessionDirectory.listFiles()) {
-                    if (!file.isDirectory()) {
-                        file.delete();
-                    }
-                }
+                deleteAllFiles(sessionDirectory);
 
                 return new SessionObject(sessionPath);
             } else {
                 return SessionObject.loadFrom(this, sessionPath);
             }
         }
+    }
+
+    /**
+     * Recursively deletes all files and folders in a directory.
+     *
+     * @param dir root directory (won't be deleted)
+     */
+    private final void deleteAllFiles(final File dir) {
+        if (!dir.isDirectory()) {
+            return;
+        }
+
+        for (final File file : dir.listFiles()) {
+            if (file.isDirectory()) {
+                deleteAllFiles(file);
+            }
+
+            file.delete();
+        }
+    }
+
+    /**
+     * Deletes everything in the app's external data folder. This folder may contain sensitive
+     * decoded and unencrypted files that need to be deleted.
+     */
+    public void deleteAppExternalData() {
+        final File externalFilesDir = getApplicationContext().getExternalFilesDir(null);
+        deleteAllFiles(externalFilesDir);
     }
 
     @Override
@@ -376,6 +496,7 @@ public class MainActivity extends AppCompatActivity {
      */
     private void handleNewImage(final ImageData imageData) {
         final long versionCode = PackageFunctions.versionCode(imageData);
+        System.out.println("FOOBI Version Code: " + Long.toHexString(versionCode));
         final PackageHandler handler = Versions.getHandler(versionCode);
         final EncodedImageState state;
         final PackageHeader packageHeader;
@@ -427,6 +548,7 @@ public class MainActivity extends AppCompatActivity {
                 final DecodeSecretDialog dialog = new DecodeSecretDialog();
                 dialog.setCancelable(false);
                 dialog.setArguments(bundle);
+                dialog.setCallingActivity(this);
                 dialog.show(getSupportFragmentManager(), "decodeSecret");
 
                 break;

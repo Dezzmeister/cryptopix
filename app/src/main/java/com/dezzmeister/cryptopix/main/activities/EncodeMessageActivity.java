@@ -17,6 +17,8 @@ import android.widget.Toast;
 import com.dezzmeister.cryptopix.R;
 import com.dezzmeister.cryptopix.main.dialogs.DialogArgs;
 import com.dezzmeister.cryptopix.main.dialogs.SetPasswordDialog;
+import com.dezzmeister.cryptopix.main.exceptions.SizeLimitExceededException;
+import com.dezzmeister.cryptopix.main.images.ImageData;
 import com.dezzmeister.cryptopix.main.secret.EncodingOptions;
 import com.dezzmeister.cryptopix.main.secret.PackageHandler;
 import com.dezzmeister.cryptopix.main.secret.PackageHeader;
@@ -30,7 +32,11 @@ import com.google.android.gms.ads.initialization.InitializationStatus;
 import com.google.android.gms.ads.initialization.OnInitializationCompleteListener;
 
 import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
 
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
@@ -44,7 +50,11 @@ import javassist.bytecode.ByteArray;
  */
 public class EncodeMessageActivity extends AppCompatActivity {
 
+    public static final String ENCODED_IMAGE_FOLDER = "encoded";
+
     private static final int REQUEST_OPEN_FILE = 1;
+
+    private static final int REQUEST_SAVE_FILE = 2;
 
     private SessionObject sessionObject;
     private PackageHeader packageHeader;
@@ -58,12 +68,21 @@ public class EncodeMessageActivity extends AppCompatActivity {
     private Button saveFileButton;
     private Button sendFileButton;
 
+    /**
+     * A quick hack to ensure that the password checkbox is only checked when the user supplies a password
+     */
+    private boolean ignorePasswordCheckboxLogic = false;
+
+    private ImageData imageToSave = null;
+
     @Override
     public void onCreate(final Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
         final Intent intent = getIntent();
         sessionObject = (SessionObject) intent.getSerializableExtra(DialogArgs.SESSION_OBJECT_KEY);
+        sessionObject.resolveImagePath();
+
         packageHeader = (PackageHeader) intent.getSerializableExtra(DialogArgs.PACKAGE_HEADER_KEY);
         packageHandler = (PackageHandler) intent.getSerializableExtra(DialogArgs.PACKAGE_HANDLER_KEY);
 
@@ -79,12 +98,12 @@ public class EncodeMessageActivity extends AppCompatActivity {
             }
         });
 
-        encodingOptions = new EncodingOptions();
-        encodingOptions.versionCode = Versions.THIS_VERSION;
-
         final AdView adView = findViewById(R.id.adView);
         final AdRequest adRequest = new AdRequest.Builder().build();
         adView.loadAd(adRequest);
+
+        encodingOptions = new EncodingOptions();
+        encodingOptions.versionCode = Versions.THIS_VERSION;
 
         final Button selectFileButton = findViewById(R.id.select_file);
         selectFileButton.setOnClickListener(this::onSelectFile);
@@ -99,8 +118,95 @@ public class EncodeMessageActivity extends AppCompatActivity {
 
         fileNameView = findViewById(R.id.filename);
         saveFileButton = findViewById(R.id.save_file);
+        saveFileButton.setOnClickListener(this::onSaveButtonPressed);
         sendFileButton = findViewById(R.id.send_file);
+        sendFileButton.setOnClickListener(this::onSendButtonPressed);
         disableExportFunctions();
+    }
+
+    private final File encodeAndSaveExternal() {
+        final File filesDir = getApplicationContext().getExternalFilesDir(null);
+        final File encodedImageDir = new File(filesDir, EncodeMessageActivity.ENCODED_IMAGE_FOLDER);
+
+        try {
+            final ImageData encoded = encode();
+
+            final Bitmap bitmap = Bitmap.createBitmap(encoded.pixels, encoded.width, encoded.height, Bitmap.Config.ARGB_8888);
+            final String fileName = System.currentTimeMillis() + ".png";
+            final File file = new File(encodedImageDir, fileName);
+
+            final FileOutputStream fos = new FileOutputStream(file);
+            bitmap.compress(Bitmap.CompressFormat.PNG, 100, fos);
+
+            return file;
+        } catch (IOException e) {
+            e.printStackTrace();
+
+            final Toast toast = Toast.makeText(this, "Unable to save encoded image to external storage!", Toast.LENGTH_LONG);
+            toast.show();
+        }
+
+        return null;
+    }
+
+    private final ImageData encode() {
+
+        // TODO: Show different messages for each exception
+        try {
+            final ImageData encoded = packageHandler.encodeSecret(sessionObject.getImage(), payload, encodingOptions);
+
+            return encoded;
+        } catch (SizeLimitExceededException e) {
+            e.printStackTrace();
+
+            final Toast toast = Toast.makeText(this, "Selected file is too large!", Toast.LENGTH_SHORT);
+            toast.show();
+
+            return null;
+        } catch (Exception e) {
+            e.printStackTrace();
+
+            final Toast toast = Toast.makeText(this, "An unknown error occurred", Toast.LENGTH_SHORT);
+            toast.show();
+
+            return null;
+        }
+    }
+
+    private final void onSaveButtonPressed(final View view) {
+        final ImageData encodedImage = encode();
+        imageToSave = encodedImage;
+
+        if (encodedImage == null) {
+            return;
+        }
+
+        final long timeStamp = System.currentTimeMillis();
+        final String fileName = timeStamp + ".png";
+
+        final Intent intent = new Intent();
+        intent.setAction(Intent.ACTION_CREATE_DOCUMENT);
+        intent.addCategory(Intent.CATEGORY_OPENABLE);
+        intent.setType("image/png");
+        intent.putExtra(Intent.EXTRA_TITLE, fileName);
+        startActivityForResult(intent, REQUEST_SAVE_FILE);
+    }
+
+    /**
+     * Encodes the {@linkplain #payload} using {@link #encodingOptions}. Creates a chooser to select an app
+     * to send the secret file.
+     *
+     * @param view view
+     */
+    private final void onSendButtonPressed(final View view) {
+        final File encodedImage = encodeAndSaveExternal();
+        final Uri imageURI = Uri.fromFile(encodedImage);
+
+        final Intent intent = new Intent();
+        intent.setAction(Intent.ACTION_SEND);
+        intent.putExtra(Intent.EXTRA_STREAM, imageURI);
+        intent.setType("image/png");
+        startActivity(Intent.createChooser(intent, "Send to"));
     }
 
     /**
@@ -143,28 +249,33 @@ public class EncodeMessageActivity extends AppCompatActivity {
     }
 
     private final void onSetPasswordCheckboxChanged(final CompoundButton buttonView, final boolean isChecked) {
-        if (isChecked) {
-            encodingOptions.password = null;
-        } else {
-            final SetPasswordDialog dialog = new SetPasswordDialog();
-            dialog.setCallingActivity(this);
-            dialog.setCancelable(false);
-            passwordCheckbox.setChecked(false);
+        if (!ignorePasswordCheckboxLogic) {
+            if (!isChecked) {
+                encodingOptions.password = null;
+            } else {
+                final SetPasswordDialog dialog = new SetPasswordDialog();
+                dialog.setCallingActivity(this);
+                dialog.setCancelable(false);
+                passwordCheckbox.setChecked(false);
 
-            dialog.show(getSupportFragmentManager(), "setPassword");
+                dialog.show(getSupportFragmentManager(), "setPassword");
+            }
         }
+
+        ignorePasswordCheckboxLogic = false;
     }
 
     public void setPassword(final String password) {
         encodingOptions.password = password;
+        ignorePasswordCheckboxLogic = true;
         passwordCheckbox.setChecked(true);
     }
 
     /**
      * Runs when the "Compress File" checkbox is toggled.
      *
-     * @param buttonView
-     * @param isChecked
+     * @param buttonView checkbox view
+     * @param isChecked true if the checkbox is checked, false if unchecked
      */
     private final void onCompressFileCheckboxChanged(final CompoundButton buttonView, final boolean isChecked) {
         encodingOptions.compress = isChecked;
@@ -187,7 +298,7 @@ public class EncodeMessageActivity extends AppCompatActivity {
 
                         final byte[] payloadData = baos.toByteArray();
                         final String mimeType = getContentResolver().getType(contentURI);
-                        MimeTypeMap mimeTypeMap = MimeTypeMap.getSingleton();
+                        final MimeTypeMap mimeTypeMap = MimeTypeMap.getSingleton();
                         final String extension = mimeTypeMap.getExtensionFromMimeType(mimeType);
                         final String timeStamp = System.currentTimeMillis() + "";
                         final String fileName = timeStamp + "." + extension;
@@ -205,6 +316,24 @@ public class EncodeMessageActivity extends AppCompatActivity {
                         e.printStackTrace();
 
                         final Toast toast = Toast.makeText(this, "Unable to read file!", Toast.LENGTH_SHORT);
+                        toast.show();
+                    }
+                }
+
+                super.onActivityResult(requestCode, resultCode, data);
+                return;
+            }
+            case REQUEST_SAVE_FILE: {
+                if (resultCode == RESULT_OK) {
+                    try (final OutputStream outputStream = getContentResolver().openOutputStream(data.getData())) {
+                        if (outputStream != null && imageToSave != null) {
+                            final Bitmap bitmap = Bitmap.createBitmap(imageToSave.pixels, imageToSave.width, imageToSave.height, Bitmap.Config.ARGB_8888);
+                            bitmap.compress(Bitmap.CompressFormat.PNG, 100, outputStream);
+                        }
+                    } catch (Exception e) {
+                        e.printStackTrace();
+
+                        final Toast toast = Toast.makeText(this, "Unable to save encoded image!", Toast.LENGTH_SHORT);
                         toast.show();
                     }
                 }

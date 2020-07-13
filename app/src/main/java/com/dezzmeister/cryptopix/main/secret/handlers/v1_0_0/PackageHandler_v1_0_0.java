@@ -79,12 +79,12 @@ public class PackageHandler_v1_0_0 implements PackageHandler {
     private static final int HASH_LENGTH = 32;
 
     /**
-     * Minimum byte-length of a package header, if no password is used
+     * Minimum byte-length of a package header, if no password is used (not a binary field)
      */
     private static final int MIN_PACKAGE_HEADER_LENGTH = VERSION_CODE_LENGTH + PAYLOAD_HASH_LENGTH + PAYLOAD_SIZE_LENGTH + BOOLEAN_FLAGS_LENGTH;
 
     /**
-     * Maximum byte-length of a package header, if a password is used
+     * Maximum byte-length of a package header, if a password is used (not a binary field)
      */
     private static final int MAX_PACKAGE_HEADER_LENGTH = MIN_PACKAGE_HEADER_LENGTH + SALT_LENGTH + INIT_VECTOR_LENGTH + HASH_LENGTH;
 
@@ -118,6 +118,10 @@ public class PackageHandler_v1_0_0 implements PackageHandler {
 
         final byte[] realHash = md5.digest(data);
 
+        System.out.println("FOOBI Real Hash: " + PackageFunctions.bts(realHash));
+        System.out.println("FOOBI Expected Hash: " + PackageFunctions.bts(packageHeader.payloadHash));
+        System.out.println("FOOBI Actual Damn Payload: " + PackageFunctions.bts(data));
+
         if (Arrays.equals(realHash, packageHeader.payloadHash)) {
             if (packageHeader.hasPassword) {
                 return EncodedImageState.SECRET_PASSWORD;
@@ -130,13 +134,26 @@ public class PackageHandler_v1_0_0 implements PackageHandler {
     }
 
     @Override
-    public boolean passwordProtected(final ImageData secret, final PackageHeader data) {
-        if (data != null && data instanceof PackageData_v1_0_0) {
-            return ((PackageData_v1_0_0) data).hasPassword;
+    public boolean isPasswordProtected(final ImageData secret, final PackageHeader data) {
+        if (data != null) {
+            return data.isPasswordProtected();
         }
 
         final PackageData_v1_0_0 packageData = (PackageData_v1_0_0) extractHeader(secret);
         return packageData.hasPassword;
+    }
+
+    @Override
+    public boolean isCorrectPassword(final String password, final PackageHeader data) throws NoSuchAlgorithmException {
+        if ((!(data instanceof PackageData_v1_0_0)) || (!data.isPasswordProtected())) {
+            return false;
+        }
+
+        final PackageData_v1_0_0 header = (PackageData_v1_0_0) data;
+
+        final byte[] passwordBytes = password.getBytes(StandardCharsets.US_ASCII);
+
+        return PackageFunctions.isCorrectPassword(passwordBytes, header.salt, header.passwordHash);
     }
 
     @Override
@@ -201,6 +218,12 @@ public class PackageHandler_v1_0_0 implements PackageHandler {
         data.passwordHash = passwordHash;
         data.dataOffset = seek;
 
+        System.out.println("FOOBI Header: " + PackageFunctions.bts(PackageFunctions.extractBytes(secret.pixels, data.dataOffset, 0)));
+        System.out.println("FOOBI Salt: " + PackageFunctions.bts(data.salt));
+        System.out.println("FOOBI IV: " + PackageFunctions.bts(data.initVector));
+        System.out.println("FOOBI passwordHash: " + PackageFunctions.bts(data.passwordHash));
+        System.out.println("FOOBI payloadHash: " + PackageFunctions.bts(data.payloadHash));
+
         return data;
     }
 
@@ -237,10 +260,10 @@ public class PackageHandler_v1_0_0 implements PackageHandler {
         }
 
         final ArrayList<byte[]> payloadFields = new ArrayList<byte[]>();
-        final byte[] fileNameSizeField = PackageFunctions.intToBytes(secretData.fileName().length());
         final byte[] fileName = secretData.fileName().getBytes(StandardCharsets.US_ASCII);
-        final byte[] mimeTypeSizeField = PackageFunctions.intToBytes(secretData.mimeType().length());
+        final byte[] fileNameSizeField = PackageFunctions.intToBytes(fileName.length);
         final byte[] mimeType = secretData.mimeType().getBytes(StandardCharsets.US_ASCII);
+        final byte[] mimeTypeSizeField = PackageFunctions.intToBytes(mimeType.length);
 
         payloadFields.add(fileNameSizeField);
         payloadFields.add(fileName);
@@ -296,6 +319,13 @@ public class PackageHandler_v1_0_0 implements PackageHandler {
 
         final byte[] completeSecretPackage = PackageFunctions.packSequentialBinaryFields(packageFields);
 
+        System.out.println("FOOBI Encoded: " + PackageFunctions.bts(completeSecretPackage));
+        System.out.println("FOOBI Salt: " + PackageFunctions.bts(salt));
+        System.out.println("FOOBI IV: " + PackageFunctions.bts(ivSpec.getIV()));
+        System.out.println("FOOBI passwordHash: " + PackageFunctions.bts(passwordHash));
+        System.out.println("FOOBI payloadHash: " + PackageFunctions.bts(payloadHash));
+        System.out.println("FOOBI Actual Payload: " + PackageFunctions.bts(payload));
+
         final int[] out = new int[original.pixels.length];
         System.arraycopy(original.pixels, 0, out, 0, out.length);
 
@@ -324,6 +354,12 @@ public class PackageHandler_v1_0_0 implements PackageHandler {
 
         final byte[] rawPayload = PackageFunctions.extractBytes(secret.pixels, packageData.payloadSize, packageData.dataOffset);
         final byte[] unencryptedPayload;
+
+        System.out.println("FOOBI Decoded: " + PackageFunctions.bts(PackageFunctions.extractBytes(secret.pixels, 0, packageData.dataOffset)));
+        System.out.println("FOOBI Salt: " + PackageFunctions.bts(packageData.salt));
+        System.out.println("FOOBI IV: " + PackageFunctions.bts(packageData.initVector));
+        System.out.println("FOOBI passwordHash: " + PackageFunctions.bts(packageData.passwordHash));
+        System.out.println("FOOBI payloadHash: " + PackageFunctions.bts(packageData.payloadHash));
 
         if (packageData.hasPassword) {
             final byte[] passwordBytes = password.getBytes(StandardCharsets.US_ASCII);

@@ -15,6 +15,8 @@
 
     <string name="yes">Yes</string>
     <string name="no">No</string>
+    <string name="ok">Ok</string>
+    <string name="cancel">Cancel</string>
 
     <string name="encode_secret_dialog">This image does not contain a secret message. Do you want to add one?</string>
     <string name="decode_secret_dialog">This image contains a secret message. Do you want to extract it?</string>
@@ -28,7 +30,11 @@
     <string name="save_file_button">Save File</string>
     <string name="send_file_button">Send File</string>
 
+    <string name="set_password_dialog_title">Set a password</string>
     <string name="set_password_dialog_hint">Enter a password</string>
 
+    <string name="enter_password_decode_dialog_title">Enter a password</string>
+    <string name="enter_password_decode_dialog_hint">Enter a password</string>
+    <string name="enter_password_decode_dialog_message">This secret data is encrypted with a password.</string>
 
 </resources>

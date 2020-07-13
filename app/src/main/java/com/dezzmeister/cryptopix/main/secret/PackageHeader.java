@@ -10,4 +10,11 @@ import java.io.Serializable;
  * @since 1.0.0
  */
 public interface PackageHeader extends Serializable {
+
+    /**
+     * Returns true if this header describes a package encrypted with a password.
+     *
+     * @return true if a password is required to open the package represented by this header
+     */
+    boolean isPasswordProtected();
 }

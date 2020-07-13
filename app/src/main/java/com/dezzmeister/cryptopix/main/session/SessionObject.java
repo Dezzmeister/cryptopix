@@ -43,7 +43,7 @@ public class SessionObject implements Serializable {
     private transient ImageData imageData;
 
     /**
-     * True if the image ({@link #imageData} contains secret data
+     * True if the image ({@link #imageData} contains uncorrupted secret data
      */
     private boolean imageHasSecret = false;
 

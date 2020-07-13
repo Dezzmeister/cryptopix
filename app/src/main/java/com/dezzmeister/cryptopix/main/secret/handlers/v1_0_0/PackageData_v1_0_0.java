@@ -53,4 +53,9 @@ public class PackageData_v1_0_0 implements PackageHeader {
      * The pixel at which payload data begins (the payload header, possibly encrypted)
      */
     public int dataOffset = -1;
+
+    @Override
+    public boolean isPasswordProtected() {
+        return hasPassword;
+    }
 }

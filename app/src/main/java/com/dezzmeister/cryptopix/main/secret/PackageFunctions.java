@@ -25,6 +25,8 @@ import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.PBEKeySpec;
 import javax.crypto.spec.SecretKeySpec;
 
+import at.favre.lib.crypto.bcrypt.BCrypt;
+
 /**
  * Contains functions to extract/hide secret data. Package handlers can use these functions; new functions
  * may be added to support newer encoding techniques.
@@ -231,19 +233,8 @@ public class PackageFunctions {
     public static final byte[] saltAndHashPassword(final byte[] salt, final byte[] password) throws NoSuchAlgorithmException {
         final byte[] salted = new byte[salt.length + password.length];
 
-        int saltIndex = 0;
-        int passIndex = 0;
-        for (int i = 0; i < salted.length; i++) {
-            if (saltIndex < salt.length) {
-                salted[i] = salt[saltIndex];
-                saltIndex++;
-            }
-
-            if (passIndex < password.length) {
-                salted[i] = password[passIndex];
-                passIndex++;
-            }
-        }
+        System.arraycopy(password, 0, salted, 0, password.length);
+        System.arraycopy(salt, 0, salted, password.length, salt.length);
 
         final MessageDigest digest = MessageDigest.getInstance("SHA-256");
         final byte[] hash = digest.digest(salted);
@@ -300,6 +291,17 @@ public class PackageFunctions {
 
             pixels[index] = pixel;
         }
+    }
+
+    public static final String bts(final byte[] bytes) {
+        final StringBuilder sb = new StringBuilder();
+
+        for (byte b : bytes) {
+            final int unsigned = ((int) b) & 0xFF;
+            sb.append(Integer.toHexString(unsigned));
+        }
+
+        return sb.toString();
     }
 
     /**

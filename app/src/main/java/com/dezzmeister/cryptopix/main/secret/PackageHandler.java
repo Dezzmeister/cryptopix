@@ -1,7 +1,5 @@
 package com.dezzmeister.cryptopix.main.secret;
 
-import android.content.Context;
-
 import com.dezzmeister.cryptopix.main.exceptions.SizeLimitExceededException;
 import com.dezzmeister.cryptopix.main.images.ImageData;
 
@@ -46,7 +44,18 @@ public interface PackageHandler extends Serializable {
      *             package header and return the value in that.
      * @return true if the given image is password protected
      */
-    boolean passwordProtected(final ImageData secret, final PackageHeader data);
+    boolean isPasswordProtected(final ImageData secret, final PackageHeader data);
+
+    /**
+     * Returns true if the package represented by <code>data</code> is encrypted with a password,
+     * and the password given is the correct one. This method will return false even if the package
+     * is not encrypted with a password, so {@link #isPasswordProtected(ImageData, PackageHeader)} should be
+     * called before throwing any "incorrect password" errors.
+     *
+     * @param password given password
+     * @return package header containing salted, hashed password (and salt)
+     */
+    boolean isCorrectPassword(final String password, final PackageHeader data) throws NoSuchAlgorithmException;
 
     /**
      * Extracts only the package header of an image containing secret data. Anyone can view the package
